@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/refs/tags/tauri-v2.0.0/crates/tauri-utils/schema/capability.json",
+  "identifier": "default",
+  "description": "Default capabilities for LLMpad",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open"
+  ]
+}
