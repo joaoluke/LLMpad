@@ -1,0 +1,16 @@
+src-tauri/target/** linguist-generated
+src-tauri/gen/** linguist-generated
+node_modules/** linguist-vendored
+dist/** linguist-generated
+build/** linguist-generated
+
+src-tauri/tauri.conf.json linguist-language=JSON
+src-tauri/capabilities/** linguist-documentation
+src-tauri/gen/schemas/** linguist-documentation
+
+# Package managers
+package-lock.json linguist-generated
+Cargo.lock linguist-generated
+
+src-tauri/src/** linguist-language=Rust
+*.rs linguist-language=Rust
