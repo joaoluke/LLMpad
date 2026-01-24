@@ -9,6 +9,8 @@ import {
   Bot,
   User,
   Loader2,
+  FileCode,
+  RefreshCw,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
@@ -33,6 +35,12 @@ interface AppSettings {
   model: string;
 }
 
+interface ModelFile {
+  name: string;
+  path: string;
+  content: string;
+}
+
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
@@ -45,11 +53,15 @@ function App() {
     api_key: "",
     model: "llama3.2",
   });
+  const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [showModelManager, setShowModelManager] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadConversations();
     loadSettings();
+    loadModelFiles();
   }, []);
 
   useEffect(() => {
@@ -80,8 +92,79 @@ function App() {
     try {
       await invoke("save_settings", { settings });
       setShowSettings(false);
+      loadOllamaModels();
     } catch (error) {
       console.error("Erro ao salvar configurações:", error);
+    }
+  };
+
+  const loadModelFiles = async () => {
+    try {
+      const files = await invoke<ModelFile[]>("get_modelfiles");
+      setModelFiles(files);
+    } catch (error) {
+      console.error("Erro ao carregar Modelfiles:", error);
+    }
+  };
+
+  const loadOllamaModels = async () => {
+    try {
+      const models = await invoke<string[]>("list_ollama_models", {
+        apiUrl: settings.api_url,
+      });
+      setOllamaModels(models);
+    } catch (error) {
+      console.error("Erro ao carregar modelos do Ollama:", error);
+      setOllamaModels([]);
+    }
+  };
+
+  const createModelInOllama = async (modelFile: ModelFile) => {
+    console.log("=== Iniciando criação de modelo ===");
+    console.log("ModelFile:", modelFile);
+    
+    try {
+      // Extract base model from Modelfile
+      const fromMatch = modelFile.content.match(/FROM\s+(.+)/i);
+      console.log("FROM match:", fromMatch);
+      
+      if (!fromMatch) {
+        alert("Erro: Modelfile não contém linha FROM");
+        return;
+      }
+      
+      const baseModel = fromMatch[1].trim();
+      console.log("Base model:", baseModel);
+      
+      // Check if base model exists
+      console.log("Verificando se modelo base existe...");
+      const baseModelExists = await invoke<boolean>("check_base_model", {
+        apiUrl: settings.api_url,
+        modelName: baseModel,
+      });
+      
+      console.log("Base model exists:", baseModelExists);
+      
+      if (!baseModelExists) {
+        const message = `Modelo base '${baseModel}' não encontrado no Ollama.\n\nVerifique se você já baixou este modelo com:\nollama pull ${baseModel}`;
+        console.error(message);
+        alert(message);
+        return;
+      }
+      
+      console.log("Criando modelo customizado...");
+      const result = await invoke<string>("create_ollama_model", {
+        apiUrl: settings.api_url,
+        modelName: modelFile.name,
+        modelfileContent: modelFile.content,
+      });
+      
+      console.log("Resultado:", result);
+      alert(result);
+      loadOllamaModels();
+    } catch (error) {
+      console.error("Erro completo:", error);
+      alert(`Erro ao criar modelo: ${error}`);
     }
   };
 
@@ -382,18 +465,51 @@ function App() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
-                  Modelo
+                <label className="block text-sm text-gray-400 mb-1 flex items-center justify-between">
+                  <span>Modelo</span>
+                  <button
+                    onClick={loadOllamaModels}
+                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  >
+                    <RefreshCw size={12} />
+                    Atualizar
+                  </button>
                 </label>
-                <input
-                  type="text"
-                  value={settings.model}
-                  onChange={(e) =>
-                    setSettings({ ...settings, model: e.target.value })
-                  }
-                  placeholder="llama3.2"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-                />
+                {ollamaModels.length > 0 ? (
+                  <select
+                    value={settings.model}
+                    onChange={(e) =>
+                      setSettings({ ...settings, model: e.target.value })
+                    }
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                  >
+                    {ollamaModels.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={settings.model}
+                    onChange={(e) =>
+                      setSettings({ ...settings, model: e.target.value })
+                    }
+                    placeholder="llama3.2"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                  />
+                )}
+                <button
+                  onClick={() => {
+                    setShowSettings(false);
+                    setShowModelManager(true);
+                  }}
+                  className="mt-2 w-full text-xs text-gray-400 hover:text-gray-300 flex items-center justify-center gap-1 py-1"
+                >
+                  <FileCode size={14} />
+                  Gerenciar Modelos Customizados ({modelFiles.length})
+                </button>
               </div>
             </div>
 
@@ -409,6 +525,83 @@ function App() {
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
               >
                 Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Model Manager Modal */}
+      {showModelManager && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Modelos Customizados</h2>
+            
+            <p className="text-sm text-gray-400 mb-4">
+              Modelfiles encontrados na pasta <code className="bg-gray-700 px-1 rounded">models/</code>
+            </p>
+
+            {modelFiles.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <FileCode size={48} className="mx-auto mb-3 opacity-50" />
+                <p>Nenhum Modelfile encontrado</p>
+                <p className="text-xs mt-2">
+                  Crie arquivos .Modelfile na pasta models/ do projeto
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {modelFiles.map((modelFile) => (
+                  <div
+                    key={modelFile.name}
+                    className="bg-gray-700 rounded-lg p-4"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="font-medium">{modelFile.name}</h3>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {modelFile.path}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => createModelInOllama(modelFile)}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
+                      >
+                        Criar no Ollama
+                      </button>
+                    </div>
+                    <details className="mt-2">
+                      <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
+                        Ver Modelfile
+                      </summary>
+                      <pre className="mt-2 text-xs bg-gray-900 p-3 rounded overflow-x-auto">
+                        {modelFile.content}
+                      </pre>
+                    </details>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowModelManager(false);
+                  setShowSettings(true);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => {
+                  loadModelFiles();
+                  loadOllamaModels();
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <RefreshCw size={16} />
+                Atualizar
               </button>
             </div>
           </div>

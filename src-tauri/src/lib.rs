@@ -1,7 +1,8 @@
 use rusqlite::{Connection, Result as SqliteResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
-use tauri::State;
+use std::fs;
+use tauri::{Manager, State};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conversation {
@@ -53,6 +54,23 @@ struct ChatChoice {
 #[derive(Debug, Serialize, Deserialize)]
 struct ChatMessageResponse {
     content: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModelFile {
+    pub name: String,
+    pub path: String,
+    pub content: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OllamaModel {
+    name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OllamaListResponse {
+    models: Vec<OllamaModel>,
 }
 
 pub struct Database {
@@ -340,6 +358,129 @@ async fn chat_completion(
     Ok(content)
 }
 
+#[tauri::command]
+fn get_modelfiles(app: tauri::AppHandle) -> Result<Vec<ModelFile>, String> {
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    
+    // Try to find the project's models directory
+    let mut models_dir = app_dir.parent()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .map(|p| p.join("Documents").join("LLMpad").join("models"))
+        .unwrap_or_else(|| app_dir.join("models"));
+    
+    // Fallback: if the above path doesn't exist, try relative to app data
+    if !models_dir.exists() {
+        models_dir = app_dir.join("models");
+    }
+    
+    if !models_dir.exists() {
+        fs::create_dir_all(&models_dir).map_err(|e| e.to_string())?;
+        return Ok(vec![]);
+    }
+    
+    let mut modelfiles = Vec::new();
+    
+    if let Ok(entries) = fs::read_dir(&models_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("Modelfile") {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                        modelfiles.push(ModelFile {
+                            name: name.to_string(),
+                            path: path.to_string_lossy().to_string(),
+                            content,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(modelfiles)
+}
+
+#[tauri::command]
+async fn list_ollama_models(api_url: String) -> Result<Vec<String>, String> {
+    let client = reqwest::Client::new();
+    let base_url = api_url.trim_end_matches("/v1").trim_end_matches('/');
+    let url = format!("{}/api/tags", base_url);
+    
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Erro ao conectar com Ollama: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Ollama retornou erro: {}", response.status()));
+    }
+    
+    let ollama_response: OllamaListResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Erro ao parsear resposta do Ollama: {}", e))?;
+    
+    Ok(ollama_response.models.into_iter().map(|m| m.name).collect())
+}
+
+#[tauri::command]
+async fn check_base_model(api_url: String, model_name: String) -> Result<bool, String> {
+    let models = list_ollama_models(api_url).await?;
+    Ok(models.contains(&model_name))
+}
+
+#[tauri::command]
+async fn create_ollama_model(
+    _api_url: String,
+    model_name: String,
+    modelfile_content: String,
+) -> Result<String, String> {
+    use std::process::Command;
+    use std::io::Write;
+    
+    // Log for debugging
+    println!("Creating model '{}' using Ollama CLI", model_name);
+    println!("Modelfile content:\n{}", modelfile_content);
+    
+    // Create temporary Modelfile
+    let temp_dir = std::env::temp_dir();
+    let modelfile_path = temp_dir.join(format!("{}.Modelfile", model_name));
+    
+    // Write Modelfile to temp location
+    let mut file = std::fs::File::create(&modelfile_path)
+        .map_err(|e| format!("Erro ao criar arquivo temporário: {}", e))?;
+    
+    file.write_all(modelfile_content.as_bytes())
+        .map_err(|e| format!("Erro ao escrever Modelfile: {}", e))?;
+    
+    drop(file); // Close file before running command
+    
+    // Run ollama create command
+    let output = Command::new("ollama")
+        .arg("create")
+        .arg(&model_name)
+        .arg("-f")
+        .arg(&modelfile_path)
+        .output()
+        .map_err(|e| format!("Erro ao executar comando ollama: {}. Certifique-se de que o Ollama está instalado.", e))?;
+    
+    // Clean up temp file
+    let _ = std::fs::remove_file(&modelfile_path);
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        return Err(format!("Erro ao criar modelo:\n{}\n{}", stderr, stdout));
+    }
+    
+    Ok(format!("Modelo '{}' criado com sucesso!", model_name))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -359,6 +500,10 @@ pub fn run() {
             get_settings,
             save_settings,
             chat_completion,
+            get_modelfiles,
+            list_ollama_models,
+            check_base_model,
+            create_ollama_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
