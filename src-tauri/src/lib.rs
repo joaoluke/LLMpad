@@ -2,7 +2,7 @@ use rusqlite::{Connection, Result as SqliteResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use std::fs;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conversation {
@@ -481,6 +481,100 @@ async fn create_ollama_model(
     Ok(format!("Modelo '{}' criado com sucesso!", model_name))
 }
 
+#[tauri::command]
+async fn pull_ollama_model(model_name: String, window: tauri::Window) -> Result<String, String> {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+    use std::sync::mpsc;
+    
+    println!("Pulling model '{}' from Ollama", model_name);
+    
+    let mut child = Command::new("ollama")
+        .arg("pull")
+        .arg(&model_name)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Erro ao executar comando ollama: {}. Certifique-se de que o Ollama está instalado.", e))?;
+
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+
+    let (tx, rx) = mpsc::channel::<String>();
+
+    // Helper: read stream and split on either '\n' or '\r' (Ollama often updates progress with '\r').
+    let spawn_reader = |mut stream: Box<dyn Read + Send>, tx: mpsc::Sender<String>| {
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 4096];
+            let mut pending: Vec<u8> = Vec::new();
+
+            loop {
+                match stream.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        pending.extend_from_slice(&buf[..n]);
+
+                        let mut start = 0usize;
+                        for i in 0..pending.len() {
+                            if pending[i] == b'\n' || pending[i] == b'\r' {
+                                let slice = &pending[start..i];
+                                start = i + 1;
+                                let line = String::from_utf8_lossy(slice).trim().to_string();
+                                if !line.is_empty() {
+                                    let _ = tx.send(line);
+                                }
+                            }
+                        }
+
+                        if start > 0 {
+                            pending.drain(0..start);
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+
+            let tail = String::from_utf8_lossy(&pending).trim().to_string();
+            if !tail.is_empty() {
+                let _ = tx.send(tail);
+            }
+        })
+    };
+
+    let mut handles = Vec::new();
+    if let Some(out) = stdout {
+        handles.push(spawn_reader(Box::new(out), tx.clone()));
+    }
+    if let Some(err) = stderr {
+        handles.push(spawn_reader(Box::new(err), tx.clone()));
+    }
+    drop(tx);
+
+    // Emit progress lines as they arrive.
+    let emit_window = window.clone();
+    let emitter = std::thread::spawn(move || {
+        for line in rx {
+            println!("Ollama pull: {}", line);
+            let _ = emit_window.emit("ollama-pull-progress", line);
+        }
+    });
+
+    let status = child
+        .wait()
+        .map_err(|e| format!("Erro ao aguardar comando ollama: {}", e))?;
+
+    for h in handles {
+        let _ = h.join();
+    }
+    let _ = emitter.join();
+    
+    if !status.success() {
+        return Err("Erro ao baixar modelo".to_string());
+    }
+    
+    Ok(format!("Modelo '{}' baixado com sucesso!", model_name))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -504,6 +598,7 @@ pub fn run() {
             list_ollama_models,
             check_base_model,
             create_ollama_model,
+            pull_ollama_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

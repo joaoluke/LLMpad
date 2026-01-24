@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   MessageSquare,
   Plus,
@@ -11,6 +12,7 @@ import {
   Loader2,
   FileCode,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
@@ -56,6 +58,10 @@ function App() {
   const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [showModelManager, setShowModelManager] = useState(false);
+  const [showModelDownloader, setShowModelDownloader] = useState(false);
+  const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<string>("");
+  const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,6 +73,53 @@ function App() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!downloadingModel) return;
+
+    let disposed = false;
+    let unlisten: null | (() => void) = null;
+
+    const parseSizeToBytes = (value: number, unit: string) => {
+      const u = unit.toUpperCase();
+      if (u === "KB") return value * 1024;
+      if (u === "MB") return value * 1024 * 1024;
+      if (u === "GB") return value * 1024 * 1024 * 1024;
+      return value;
+    };
+
+    const tryParsePercent = (line: string) => {
+      const m = line.match(
+        /(\d+(?:\.\d+)?)\s*(KB|MB|GB)\s*\/\s*(\d+(?:\.\d+)?)\s*(KB|MB|GB)/i
+      );
+      if (!m) return null;
+
+      const downloaded = parseSizeToBytes(parseFloat(m[1]), m[2]);
+      const total = parseSizeToBytes(parseFloat(m[3]), m[4]);
+      if (!Number.isFinite(downloaded) || !Number.isFinite(total) || total <= 0) return null;
+      return Math.min(100, Math.max(0, (downloaded / total) * 100));
+    };
+
+    (async () => {
+      const unsub = await listen<string>("ollama-pull-progress", (event) => {
+        if (disposed) return;
+        const line = event.payload;
+        setDownloadProgress(line);
+        const p = tryParsePercent(line);
+        if (p !== null) setDownloadPercent(p);
+      });
+      if (disposed) {
+        unsub();
+        return;
+      }
+      unlisten = unsub;
+    })();
+
+    return () => {
+      disposed = true;
+      if (unlisten) unlisten();
+    };
+  }, [downloadingModel]);
 
   const loadConversations = async () => {
     try {
@@ -165,6 +218,30 @@ function App() {
     } catch (error) {
       console.error("Erro completo:", error);
       alert(`Erro ao criar modelo: ${error}`);
+    }
+  };
+
+  const downloadOllamaModel = async (modelName: string) => {
+    setDownloadingModel(modelName);
+    setDownloadProgress("Iniciando download...");
+    setDownloadPercent(null);
+    
+    try {
+      const result = await invoke<string>("pull_ollama_model", {
+        modelName: modelName,
+      });
+      
+      alert(result);
+      setDownloadingModel(null);
+      setDownloadProgress("");
+      setDownloadPercent(null);
+      await loadOllamaModels();
+    } catch (error) {
+      console.error("Erro ao baixar modelo:", error);
+      alert(`Erro ao baixar modelo: ${error}`);
+      setDownloadingModel(null);
+      setDownloadProgress("");
+      setDownloadPercent(null);
     }
   };
 
@@ -500,16 +577,28 @@ function App() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
                   />
                 )}
-                <button
-                  onClick={() => {
-                    setShowSettings(false);
-                    setShowModelManager(true);
-                  }}
-                  className="mt-2 w-full text-xs text-gray-400 hover:text-gray-300 flex items-center justify-center gap-1 py-1"
-                >
-                  <FileCode size={14} />
-                  Gerenciar Modelos Customizados ({modelFiles.length})
-                </button>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => {
+                      setShowSettings(false);
+                      setShowModelDownloader(true);
+                    }}
+                    className="flex-1 text-xs text-green-400 hover:text-green-300 flex items-center justify-center gap-1 py-1"
+                  >
+                    <Download size={14} />
+                    Baixar Modelos
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSettings(false);
+                      setShowModelManager(true);
+                    }}
+                    className="flex-1 text-xs text-gray-400 hover:text-gray-300 flex items-center justify-center gap-1 py-1"
+                  >
+                    <FileCode size={14} />
+                    Customizados ({modelFiles.length})
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -602,6 +691,110 @@ function App() {
               >
                 <RefreshCw size={16} />
                 Atualizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Model Downloader Modal */}
+      {showModelDownloader && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Baixar Modelos do Ollama</h2>
+            
+            <p className="text-sm text-gray-400 mb-4">
+              Selecione um modelo para baixar. Modelos maiores oferecem melhor qualidade, mas são mais lentos.
+            </p>
+
+            <div className="space-y-3">
+              {[
+                { name: "llama3.2", size: "2GB", desc: "Modelo equilibrado e versátil" },
+                { name: "llama3.2:1b", size: "1.3GB", desc: "Versão compacta e rápida" },
+                { name: "phi3", size: "2.3GB", desc: "Eficiente da Microsoft" },
+                { name: "phi3:mini", size: "2.2GB", desc: "Versão otimizada do Phi-3" },
+                { name: "mistral", size: "4.1GB", desc: "Excelente para múltiplos idiomas" },
+                { name: "gemma2:2b", size: "1.6GB", desc: "Modelo compacto do Google" },
+                { name: "qwen2.5:3b", size: "2GB", desc: "Modelo rápido da Alibaba" },
+                { name: "deepseek-r1:1.5b", size: "1.1GB", desc: "Modelo ultra-compacto" },
+                { name: "llama3.1:8b", size: "4.7GB", desc: "Versão maior com melhor qualidade" },
+              ].map((model) => (
+                <div
+                  key={model.name}
+                  className="bg-gray-700 rounded-lg p-4 flex items-center justify-between"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium">{model.name}</h3>
+                    <p className="text-xs text-gray-400 mt-1">{model.desc}</p>
+                    <p className="text-xs text-gray-500 mt-1">Tamanho: {model.size}</p>
+                  </div>
+                  <button
+                    onClick={() => downloadOllamaModel(model.name)}
+                    disabled={downloadingModel === model.name}
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center gap-2 ${
+                      downloadingModel === model.name
+                        ? "bg-gray-600 cursor-not-allowed"
+                        : ollamaModels.includes(model.name)
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    {downloadingModel === model.name ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Baixando...
+                      </>
+                    ) : ollamaModels.includes(model.name) ? (
+                      "✓ Instalado"
+                    ) : (
+                      <>
+                        <Download size={16} />
+                        Baixar
+                      </>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {downloadingModel && downloadProgress && (
+              <div className="mt-4 p-3 bg-gray-700 rounded-lg">
+                <p className="text-xs text-gray-300">{downloadProgress}</p>
+                {downloadPercent !== null && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-xs text-gray-300 mb-1">
+                      <span>Progresso</span>
+                      <span>{downloadPercent.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-800 rounded">
+                      <div
+                        className="h-2 bg-blue-500 rounded"
+                        style={{ width: `${downloadPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowModelDownloader(false);
+                  setShowSettings(true);
+                }}
+                disabled={downloadingModel !== null}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={loadOllamaModels}
+                disabled={downloadingModel !== null}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={16} />
+                Atualizar Lista
               </button>
             </div>
           </div>
