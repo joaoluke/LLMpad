@@ -14,3 +14,8 @@ Cargo.lock linguist-generated
 
 src-tauri/src/** linguist-language=Rust
 *.rs linguist-language=Rust
+
+src/** linguist-detectable=false
+*.ts linguist-detectable=false
+*.tsx linguist-detectable=false
+vite.config.ts linguist-detectable=false
