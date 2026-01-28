@@ -2,23 +2,23 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Loader2, FileCode, RefreshCw, Download } from "lucide-react";
-import { Message, Conversation, AppSettings, ModelFile } from "./types";
+import { IMessage, IConversation, IAppSettings, IModelFile } from "./types";
 import { ChatArea, Sidebar } from "./components";
 
 function App() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<IConversation[]>([]);
   const [currentConversation, setCurrentConversation] =
-    useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+    useState<IConversation | null>(null);
+  const [messages, setMessages] = useState<IMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({
+  const [settings, setSettings] = useState<IAppSettings>({
     api_url: "http://localhost:11434/v1",
     api_key: "",
     model: "llama3.2",
   });
-  const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
+  const [modelFiles, setModelFiles] = useState<IModelFile[]>([]);
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [showModelManager, setShowModelManager] = useState(false);
   const [showModelDownloader, setShowModelDownloader] = useState(false);
@@ -85,7 +85,7 @@ function App() {
 
   const loadConversations = async () => {
     try {
-      setConversations(await invoke<Conversation[]>("get_conversations"));
+      setConversations(await invoke<IConversation[]>("get_conversations"));
     } catch (e) {
       console.error("Erro ao carregar conversas:", e);
     }
@@ -93,7 +93,7 @@ function App() {
 
   const loadSettings = async () => {
     try {
-      const s = await invoke<AppSettings>("get_settings");
+      const s = await invoke<IAppSettings>("get_settings");
       if (s) setSettings(s);
     } catch (e) {
       console.error("Erro ao carregar configurações:", e);
@@ -112,7 +112,7 @@ function App() {
 
   const loadModelFiles = async () => {
     try {
-      setModelFiles(await invoke<ModelFile[]>("get_modelfiles"));
+      setModelFiles(await invoke<IModelFile[]>("get_modelfiles"));
     } catch (e) {
       console.error("Erro ao carregar Modelfiles:", e);
     }
@@ -131,7 +131,7 @@ function App() {
     }
   };
 
-  const createModelInOllama = async (mf: ModelFile) => {
+  const createModelInOllama = async (mf: IModelFile) => {
     try {
       alert(
         await invoke<string>("create_ollama_model", {
@@ -163,7 +163,7 @@ function App() {
 
   const newConversation = async () => {
     try {
-      const conv = await invoke<Conversation>("create_conversation", {
+      const conv = await invoke<IConversation>("create_conversation", {
         title: "Nova Conversa",
       });
       setConversations([conv, ...conversations]);
@@ -174,11 +174,11 @@ function App() {
     }
   };
 
-  const selectConversation = async (conv: Conversation) => {
+  const selectConversation = async (conv: IConversation) => {
     setCurrentConversation(conv);
     try {
       setMessages(
-        await invoke<Message[]>("get_messages", { conversationId: conv.id }),
+        await invoke<IMessage[]>("get_messages", { conversationId: conv.id }),
       );
     } catch (e) {
       console.error("Erro ao carregar mensagens:", e);
@@ -218,7 +218,7 @@ function App() {
     setInput("");
     setIsLoading(true);
     const tempUserMessageId = Date.now();
-    const userMessage: Message = {
+    const userMessage: IMessage = {
       id: tempUserMessageId,
       conversation_id: currentConversation?.id || 0,
       role: "user",
@@ -230,7 +230,7 @@ function App() {
 
     try {
       const [conv, userMsg, assistantMsg] = await invoke<
-        [Conversation, Message, Message]
+        [IConversation, IMessage, IMessage]
       >("send_message_complete", {
         conversationId: currentConversation?.id || null,
         userInput,

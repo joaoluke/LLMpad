@@ -1,11 +1,11 @@
 import { RefreshCw, FileCode, Download } from "lucide-react";
-import { AppSettings } from "../types";
+import { IAppSettings } from "../types";
 
 interface SettingsModalProps {
-  settings: AppSettings;
+  settings: IAppSettings;
   ollamaModels: string[];
   modelFilesCount: number;
-  onSettingsChange: (settings: AppSettings) => void;
+  onSettingsChange: (settings: IAppSettings) => void;
   onSave: () => void;
   onClose: () => void;
   onRefreshModels: () => void;

@@ -1,12 +1,12 @@
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
 import { Pencil, Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Conversation } from "../types";
+import { IConversation } from "../types";
 
 interface SidebarProps {
-  conversations: Conversation[];
-  currentConversation: Conversation | null;
-  onSelectConversation: (conv: Conversation) => void;
+  conversations: IConversation[];
+  currentConversation: IConversation | null;
+  onSelectConversation: (conv: IConversation) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: number) => void;
   onUpdateConversationTitle: (id: number, title: string) => Promise<void>;
@@ -31,7 +31,7 @@ export function Sidebar({
     }
   }, [editingId]);
 
-  const startEditing = (conv: Conversation) => {
+  const startEditing = (conv: IConversation) => {
     setEditingId(conv.id);
     setDraftTitle(conv.title);
   };

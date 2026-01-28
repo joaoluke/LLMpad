@@ -1,9 +1,9 @@
 import { FileCode, RefreshCw } from "lucide-react";
-import { ModelFile } from "../types";
+import { IModelFile } from "../types";
 
 interface ModelManagerModalProps {
-  modelFiles: ModelFile[];
-  onCreateModel: (modelFile: ModelFile) => void;
+  modelFiles: IModelFile[];
+  onCreateModel: (modelFile: IModelFile) => void;
   onRefresh: () => void;
   onClose: () => void;
 }
