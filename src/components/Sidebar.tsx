@@ -1,6 +1,13 @@
-import { MessageSquare, Plus, Trash2 } from "lucide-react";
-import { Pencil, Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import {
+  MessageSquare,
+  Plus,
+  Trash2,
+  Settings,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
 
 import { IConversation } from "../types";
 import { useAppContext } from "../contexts/store";
@@ -13,6 +20,7 @@ export function Sidebar() {
     selectConversation,
     currentConversation,
     deleteConversation,
+    setShowSettings,
   } = useAppContext();
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -46,7 +54,7 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-64 bg-gray-900 flex flex-col">
+    <div className="w-64 bg-gray-800 flex flex-col">
       <div className="p-4">
         <button
           onClick={newConversation}
@@ -137,6 +145,14 @@ export function Sidebar() {
             )}
           </div>
         ))}
+      </div>
+      <div className="p-4 text-xs text-gray-500">
+        <button
+          onClick={() => setShowSettings(true)}
+          className="w-full text-base flex items-center justify-center gap-2 px-4 py-2  hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <Settings size={20} /> Configurações
+        </button>
       </div>
     </div>
   );

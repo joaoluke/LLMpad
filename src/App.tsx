@@ -5,7 +5,6 @@ import {
   SettingsModal,
   Sidebar,
 } from "./components";
-
 import { AppProvider } from "./contexts/store";
 
 function App() {

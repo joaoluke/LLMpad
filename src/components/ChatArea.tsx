@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Bot, User, Send, Loader2, Settings } from "lucide-react";
+import { Bot, User, Send, Loader2 } from "lucide-react";
 
 import { Message } from "./Message";
 import { useAppContext } from "../contexts/store";
@@ -11,7 +11,6 @@ export function ChatArea() {
     messages,
     input,
     sendMessage,
-    setShowSettings,
     setInput,
   } = useAppContext();
 
@@ -35,12 +34,6 @@ export function ChatArea() {
         <h1 className="font-semibold">
           {currentConversation?.title || "Nova Conversa"}
         </h1>
-        <button
-          onClick={() => setShowSettings(true)}
-          className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          <Settings size={20} />
-        </button>
       </div>
 
       {/* Messages */}
