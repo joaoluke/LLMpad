@@ -1,19 +1,20 @@
 import { FileCode, RefreshCw } from "lucide-react";
-import { IModelFile } from "../types";
 
-interface ModelManagerModalProps {
-  modelFiles: IModelFile[];
-  onCreateModel: (modelFile: IModelFile) => void;
-  onRefresh: () => void;
-  onClose: () => void;
-}
+import { useAppContext } from "../contexts/store";
 
-export function ModelManagerModal({
-  modelFiles,
-  onCreateModel,
-  onRefresh,
-  onClose,
-}: ModelManagerModalProps) {
+export function ModelManagerModal() {
+  const {
+    modelFiles,
+    createModelInOllama,
+    setShowModelManager,
+    setShowSettings,
+    loadModelFiles,
+    loadOllamaModels,
+    showModelManager,
+  } = useAppContext();
+
+  if (!showModelManager) return null;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -44,7 +45,7 @@ export function ModelManagerModal({
                     </p>
                   </div>
                   <button
-                    onClick={() => onCreateModel(modelFile)}
+                    onClick={() => createModelInOllama(modelFile)}
                     className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
                   >
                     Criar no Ollama
@@ -65,13 +66,19 @@ export function ModelManagerModal({
 
         <div className="flex gap-3 mt-6">
           <button
-            onClick={onClose}
+            onClick={() => {
+              setShowModelManager(false);
+              setShowSettings(true);
+            }}
             className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
           >
             Voltar
           </button>
           <button
-            onClick={onRefresh}
+            onClick={() => {
+              loadModelFiles();
+              loadOllamaModels();
+            }}
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <RefreshCw size={16} />

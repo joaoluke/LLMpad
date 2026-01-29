@@ -1,25 +1,20 @@
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
 import { Pencil, Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
 import { IConversation } from "../types";
+import { useAppContext } from "../contexts/store";
 
-interface SidebarProps {
-  conversations: IConversation[];
-  currentConversation: IConversation | null;
-  onSelectConversation: (conv: IConversation) => void;
-  onNewConversation: () => void;
-  onDeleteConversation: (id: number) => void;
-  onUpdateConversationTitle: (id: number, title: string) => Promise<void>;
-}
+export function Sidebar() {
+  const {
+    updateConversationTitle,
+    newConversation,
+    conversations,
+    selectConversation,
+    currentConversation,
+    deleteConversation,
+  } = useAppContext();
 
-export function Sidebar({
-  conversations,
-  currentConversation,
-  onSelectConversation,
-  onNewConversation,
-  onDeleteConversation,
-  onUpdateConversationTitle,
-}: SidebarProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draftTitle, setDraftTitle] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +40,7 @@ export function Sidebar({
     if (editingId === null) return;
     const title = draftTitle.trim();
     if (!title) return;
-    await onUpdateConversationTitle(editingId, title);
+    await updateConversationTitle(editingId, title);
     setEditingId(null);
     setDraftTitle("");
   };
@@ -54,7 +49,7 @@ export function Sidebar({
     <div className="w-64 bg-gray-900 flex flex-col">
       <div className="p-4">
         <button
-          onClick={onNewConversation}
+          onClick={newConversation}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
         >
           <Plus size={20} />
@@ -66,7 +61,7 @@ export function Sidebar({
         {conversations.map((conv) => (
           <div
             key={conv.id}
-            onClick={() => onSelectConversation(conv)}
+            onClick={() => selectConversation(conv)}
             className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-800 transition-colors group ${
               currentConversation?.id === conv.id ? "bg-gray-800" : ""
             }`}
@@ -131,7 +126,7 @@ export function Sidebar({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteConversation(conv.id);
+                    deleteConversation(conv.id);
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
                   title="Excluir"

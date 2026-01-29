@@ -1,28 +1,20 @@
 import { useRef, useEffect } from "react";
 import { Bot, User, Send, Loader2, Settings } from "lucide-react";
 
-import { IMessage, IConversation } from "../types";
 import { Message } from "./Message";
+import { useAppContext } from "../contexts/store";
 
-interface ChatAreaProps {
-  messages: IMessage[];
-  currentConversation: IConversation | null;
-  input: string;
-  isLoading: boolean;
-  onInputChange: (value: string) => void;
-  onSendMessage: () => void;
-  onOpenSettings: () => void;
-}
+export function ChatArea() {
+  const {
+    currentConversation,
+    isLoading,
+    messages,
+    input,
+    sendMessage,
+    setShowSettings,
+    setInput,
+  } = useAppContext();
 
-export function ChatArea({
-  messages,
-  currentConversation,
-  input,
-  isLoading,
-  onInputChange,
-  onSendMessage,
-  onOpenSettings,
-}: ChatAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +24,7 @@ export function ChatArea({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSendMessage();
+      sendMessage();
     }
   };
 
@@ -44,7 +36,7 @@ export function ChatArea({
           {currentConversation?.title || "Nova Conversa"}
         </h1>
         <button
-          onClick={onOpenSettings}
+          onClick={() => setShowSettings(true)}
           className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
         >
           <Settings size={20} />
@@ -100,14 +92,14 @@ export function ChatArea({
         <div className="flex gap-2">
           <textarea
             value={input}
-            onChange={(e) => onInputChange(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua mensagem..."
             className="flex-1 bg-gray-700 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             rows={1}
           />
           <button
-            onClick={onSendMessage}
+            onClick={sendMessage}
             disabled={isLoading || !input.trim()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
           >
