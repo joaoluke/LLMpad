@@ -54,7 +54,7 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-64 bg-gray-800 flex flex-col">
+    <div className="w-64 dark:bg-gray-800 bg-gray-200 flex flex-col">
       <div className="p-4">
         <button
           onClick={newConversation}
@@ -70,11 +70,10 @@ export function Sidebar() {
           <div
             key={conv.id}
             onClick={() => selectConversation(conv)}
-            className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-800 transition-colors group ${
-              currentConversation?.id === conv.id ? "bg-gray-800" : ""
-            }`}
+            className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-800 transition-colors group ${currentConversation?.id === conv.id ? "bg-gray-800" : ""
+              }`}
           >
-            <MessageSquare size={18} className="text-gray-400 flex-shrink-0" />
+            <MessageSquare size={18} className="dark:text-gray-400 text-gray-600 flex-shrink-0" />
             {editingId === conv.id ? (
               <div className="flex-1 flex items-center gap-2">
                 <input
@@ -120,7 +119,7 @@ export function Sidebar() {
               </div>
             ) : (
               <>
-                <span className="flex-1 truncate text-sm">{conv.title}</span>
+                <span className="flex-1 truncate dark:text-gray-400 text-gray-600 text-sm">{conv.title}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -149,7 +148,7 @@ export function Sidebar() {
       <div className="p-4 text-xs text-gray-500">
         <button
           onClick={() => setShowSettings(true)}
-          className="w-full text-base flex items-center justify-center gap-2 px-4 py-2  hover:bg-gray-700 rounded-lg transition-colors"
+          className="w-full text-base flex items-center justify-center gap-2 px-4 py-2  dark:hover:bg-gray-700 hover:bg-gray-300 rounded-lg transition-colors"
         >
           <Settings size={20} /> Configurações
         </button>

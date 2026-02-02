@@ -25,6 +25,8 @@ type CounterContextType = {
   currentConversation: IConversation | null;
   isLoading: boolean;
   input: string;
+  theme: "light" | "dark";
+  setTheme: (theme: "light" | "dark") => void;
   createModelInOllama: (mf: IModelFile) => Promise<void>;
   setSettings: (settings: IAppSettings) => void;
   setInput: (input: string) => void;
@@ -45,6 +47,8 @@ type CounterContextType = {
 const AppContext = createContext<CounterContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+
   const [conversations, setConversations] = useState<IConversation[]>([]);
   const [currentConversation, setCurrentConversation] =
     useState<IConversation | null>(null);
@@ -75,6 +79,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+  }, [theme]);
 
   useEffect(() => {
     if (!downloadingModel) return;
@@ -281,7 +294,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setCurrentConversation(conv);
         setConversations((prev) => [conv, ...prev]);
       }
-      console.log("Received userMsg:", userMsg);
       setMessages((prev) => {
         const replaced = prev.map((m) =>
           m.id === tempUserMessageId ? userMsg : m,
@@ -311,35 +323,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider
       value={{
-        conversations,
-        currentConversation,
-        selectConversation,
-        deleteConversation,
-        showSettings,
-        modelFiles,
-        setShowSettings,
-        ollamaModels,
+        input,
+        theme,
+        setTheme,
         settings,
         messages,
         isLoading,
-        createModelInOllama,
-        downloadOllamaModel,
-        input,
-        loadOllamaModels,
-        setSettings,
         setInput,
-        saveSettings,
+        modelFiles,
+        setSettings,
         sendMessage,
+        showSettings,
+        saveSettings,
+        ollamaModels,
+        conversations,
+        loadModelFiles,
+        setShowSettings,
+        newConversation,
+        downloadPercent,
+        loadOllamaModels,
         downloadingModel,
         downloadProgress,
-        downloadPercent,
         showModelManager,
-        showModelDownloader,
+        selectConversation,
+        deleteConversation,
+        currentConversation,
         setShowModelManager,
+        showModelDownloader,
+        downloadOllamaModel,
+        createModelInOllama,
         setShowModelDownloader,
         updateConversationTitle,
-        newConversation,
-        loadModelFiles,
       }}
     >
       {children}

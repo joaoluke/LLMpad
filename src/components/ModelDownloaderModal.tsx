@@ -18,17 +18,17 @@ export function ModelDownloaderModal() {
   if (!showModelDownloader) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-4">Baixar Modelos do Ollama</h2>
+    <div className="fixed inset-0 dark:bg-black/50 bg-white/50 flex items-center justify-center z-50">
+      <div className="dark:bg-gray-800 bg-gray-200 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <h2 className="text-xl dark:text-gray-400 text-gray-600 font-semibold mb-4">Baixar Modelos do Ollama</h2>
 
-        <p className="text-sm text-gray-400 mb-4">
+        <p className="text-sm dark:text-gray-400 text-gray-600 mb-4">
           Selecione um modelo para baixar. Os modelos serão baixados diretamente
           do Ollama.
         </p>
 
         {downloadingModel && (
-          <div className="mb-4 p-4 bg-gray-700 rounded-lg">
+          <div className="mb-4 p-4 dark:bg-gray-700 bg-gray-300 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Loader2 className="animate-spin" size={16} />
               <span className="font-medium">
@@ -57,12 +57,12 @@ export function ModelDownloaderModal() {
             return (
               <div
                 key={model.name}
-                className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
+                className="flex items-center justify-between p-3 dark:bg-gray-700 bg-gray-300 rounded-lg"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{model.name}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="font-medium dark:text-gray-400 text-gray-600">{model.name}</span>
+                    <span className="text-xs dark:text-gray-400 text-gray-600">
                       ({model.size})
                     </span>
                     {isInstalled && (
@@ -99,7 +99,7 @@ export function ModelDownloaderModal() {
               setShowSettings(true);
             }}
             disabled={!!downloadingModel}
-            className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded-lg transition-colors"
+            className="flex-1 px-4 py-2 dark:bg-gray-700 bg-gray-400 hover:bg-gray-600 disabled:opacity-50 rounded-lg transition-colors"
           >
             Fechar
           </button>
