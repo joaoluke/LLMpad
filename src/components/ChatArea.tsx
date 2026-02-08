@@ -1,27 +1,21 @@
 import { useRef, useEffect } from "react";
-import { Bot, User, Send, Loader2, Settings } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import { Message, Conversation } from "../types";
+import { Bot, User, Send, Loader2, Moon, Sun } from "lucide-react";
 
-interface ChatAreaProps {
-  messages: Message[];
-  currentConversation: Conversation | null;
-  input: string;
-  isLoading: boolean;
-  onInputChange: (value: string) => void;
-  onSendMessage: () => void;
-  onOpenSettings: () => void;
-}
+import { Message } from "./Message";
+import { useAppContext } from "../contexts/store";
 
-export function ChatArea({
-  messages,
-  currentConversation,
-  input,
-  isLoading,
-  onInputChange,
-  onSendMessage,
-  onOpenSettings,
-}: ChatAreaProps) {
+export function ChatArea() {
+  const {
+    input,
+    theme,
+    setTheme,
+    setInput,
+    messages,
+    isLoading,
+    sendMessage,
+    currentConversation,
+  } = useAppContext();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,26 +25,26 @@ export function ChatArea({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSendMessage();
+      sendMessage();
     }
   };
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="h-14 border-b border-gray-700 flex items-center justify-between px-4">
-        <h1 className="font-semibold">
+      <div className="h-14 border-b d ark:border-gray-700 border-gray-300 flex items-center justify-between px-4">
+        <h1 className="font-semibold dark:text-gray-400 text-gray-600">
           {currentConversation?.title || "Nova Conversa"}
         </h1>
-        <button
-          onClick={onOpenSettings}
-          className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          <Settings size={20} />
+
+        <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+          {theme === "dark" ? (
+            <Sun className="text-gray-400" size={20} />
+          ) : (
+            <Moon className="text-gray-600" size={20} />
+          )}
         </button>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
@@ -61,26 +55,17 @@ export function ChatArea({
           messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-3 ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
+              className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"
+                }`}
             >
               {message.role === "assistant" && (
                 <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
                   <Bot size={18} />
                 </div>
               )}
-              <div
-                className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                  message.role === "user"
-                    ? "bg-blue-600"
-                    : "bg-gray-700"
-                }`}
-              >
-                <ReactMarkdown className="prose prose-invert prose-sm max-w-none">
-                  {message.content}
-                </ReactMarkdown>
-              </div>
+
+              <Message role={message.role} content={message.content} />
+
               {message.role === "user" && (
                 <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
                   <User size={18} />
@@ -102,19 +87,18 @@ export function ChatArea({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t dark:border-gray-700 border-gray-300">
         <div className="flex gap-2">
           <textarea
             value={input}
-            onChange={(e) => onInputChange(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua mensagem..."
-            className="flex-1 bg-gray-700 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 dark:bg-gray-700 bg-gray-300 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             rows={1}
           />
           <button
-            onClick={onSendMessage}
+            onClick={sendMessage}
             disabled={isLoading || !input.trim()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
           >
