@@ -197,6 +197,7 @@ function App() {
     { name: "mistral", size: "4.1GB", desc: "Excelente qualidade" },
     { name: "gemma2:2b", size: "1.6GB", desc: "Google Gemma 2" },
     { name: "qwen2.5:3b", size: "2GB", desc: "Alibaba Qwen" },
+    { name: "qwen3-coder-next", size: "42GB", desc: "Qwen3 Coder Next" },
   ];
 
   return (
@@ -237,7 +238,7 @@ function App() {
         </div>
         <div className="border-t border-gray-700 p-4">
           <div className="max-w-3xl mx-auto flex gap-3">
-            <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }}} placeholder="Digite sua mensagem..." className="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 resize-none focus:outline-none focus:border-blue-500" rows={1} />
+            <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder="Digite sua mensagem..." className="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 resize-none focus:outline-none focus:border-blue-500" rows={1} />
             <button onClick={sendMessage} disabled={isLoading || !input.trim()} className="px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl transition-colors"><Send size={20} /></button>
           </div>
         </div>
